@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>assets/sprites.png</file>
+        <file>assets/map.png</file>
+        <file>assets/map_layout.txt</file>
+    </qresource>
+</RCC>
