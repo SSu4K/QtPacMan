@@ -11,7 +11,8 @@ MainWindow::MainWindow(QWidget *parent)
     //view.scale(2, 2);
     //view.show();
 
-
+    QGraphicsScene scene(0, 0, 1000, 1000);
+    scene.setBackgroundBrush(Qt::black);
 }
 
 MainWindow::~MainWindow()

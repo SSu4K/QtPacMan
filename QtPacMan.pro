@@ -16,6 +16,7 @@ SOURCES += \
     map.cpp \
     pacman.cpp \
     pathfindingsprite.cpp \
+    point.cpp \
     sprite.cpp \
     spritesheetreader.cpp
 
@@ -26,6 +27,7 @@ HEADERS += \
     map.h \
     pacman.h \
     pathfindingsprite.h \
+    point.h \
     sprite.h \
     spritesheetreader.h \
     spritesheetreader.h

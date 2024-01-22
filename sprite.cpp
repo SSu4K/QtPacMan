@@ -9,33 +9,31 @@ void Sprite::set_image(int image){
 void Sprite::update_image(){
     set_image(0);
 }
-Sprite::Sprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y): images(reader.get_spritemap(type)), map(map), size(reader.get_size()), grid_size(map->grid_size), offset((grid_size-size)/2), type(type), age(0), state(0), direction(0) {
-    set_grid_pos(x, y);
+Sprite::Sprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y): images(reader.get_spritemap(type)), map(map), size(reader.get_size()), grid_size(map->grid_size), age(0), state(0), direction(0) {
+    grid_pos = QPoint(x, y);
+}
+Sprite::Sprite(const Sprite &sprite): QGraphicsPixmapItem(), images(sprite.images), map(sprite.map), size(sprite.size), grid_size(sprite.grid_size),
+    age(sprite.age), state(sprite.state), direction(sprite.direction), grid_pos(sprite.grid_pos), center_pos(sprite.center_pos){}
+Sprite& Sprite::operator=(const Sprite &sprite){
+    images = sprite.images;
+    map = sprite.map;
+    size = sprite.size;
+    grid_size = sprite.grid_size;
+    age = sprite.age;
+    state = sprite.state;
+    direction = sprite.direction;
+    grid_pos = sprite.grid_pos;
+    center_pos = sprite.center_pos;
+    return *this;
 }
 void Sprite::set_grid_pos(int x, int y){
-    grid_pos.setX(x);
-    grid_pos.setY(y);
-    setPos(x*grid_size+offset, y*grid_size+offset);
-    center_pos.setX((x+0.5)*grid_size);
-    center_pos.setY((y+0.5)*grid_size);
+    grid_pos = map->normalize_point(QPoint(x, y));
+    center_pos = QPointF(x+0.5, y+0.5) * grid_size;
+    setPos(center_pos-QPointF(size/2.0, size/2.0));
 }
 void Sprite::snap_to_grid(){
-    if(grid_pos.x()<-1){
-        grid_pos.setX(map->width);
-    }
 
-    if(grid_pos.y()<-1){
-        grid_pos.setY(map->height);
-    }
-
-    if(grid_pos.x()>map->width){
-        grid_pos.setX(-1);
-    }
-    if(grid_pos.y()>map->height){
-        grid_pos.setY(-1);
-    }
-
-    set_grid_pos(grid_pos.x(), grid_pos.y());
+    this->set_grid_pos(grid_pos.x(), grid_pos.y());
 }
 void Sprite::advance(int phase){
     if(phase){
@@ -61,21 +59,42 @@ QPoint Sprite::directionToVec(const int direction){
 
 }
 
+
+QPointF Sprite::directionToVecF(const int direction){
+    return QPointF(Sprite::directionToVec(direction));
+}
+
 QPoint Sprite::get_grid_pos() const{
     return grid_pos;
 }
-
-void MovingSprite::move(QPoint vec){
-    if(!freeze){
-        setPos(pos()+vec);
-        center_pos += vec;
-    }
-
+int Sprite::get_direction() const{
+    return direction;
 }
 
-MovingSprite::MovingSprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y): Sprite::Sprite(reader, type, map, x, y), speed(0), next_direction(0), freeze(false) {
+int Sprite::get_state() const{
+    return state;
+}
+MovingSprite::MovingSprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y): Sprite::Sprite(reader, type, map, x, y), speed(0), next_direction(0), wall_force(0), freeze(false) {
     setFlag(QGraphicsItem::ItemIsFocusable, true);
     direction = 0;
+}
+
+MovingSprite::MovingSprite(const MovingSprite &sprite): Sprite(sprite),
+    speed(sprite.speed), next_direction(sprite.next_direction), freeze(sprite.freeze), wall_force(sprite.wall_force){}
+MovingSprite& MovingSprite::operator=(const MovingSprite &sprite){
+    Sprite::operator=(sprite);
+    speed = sprite.speed;
+    freeze = sprite.freeze;
+    next_direction = sprite.next_direction;
+    wall_force = sprite.wall_force;
+    return *this;
+}
+void MovingSprite::move(QPointF vec){
+    if(!freeze){
+        center_pos += vec;
+        setPos(center_pos - QPoint(size/2, size/2));
+    }
+
 }
 
 void MovingSprite::keyPressEvent(QKeyEvent *event){
@@ -97,21 +116,21 @@ void MovingSprite::keyPressEvent(QKeyEvent *event){
     }
 }
 
-bool MovingSprite::check_collision(int direction){
+bool MovingSprite::check_collision(int direction) const{
     QPoint next_grid_pos = grid_pos + Sprite::directionToVec(direction);
     int next_grid_x = next_grid_pos.x();
     int next_grid_y = next_grid_pos.y();
     if(next_grid_x < 0 || next_grid_y < 0 || next_grid_x >= map->width || next_grid_y >= map->height){
         return false;
     }
-    if(map->walls[next_grid_x][next_grid_y]!=0){
+    if(map->walls[next_grid_x][next_grid_y]>this->wall_force){
         return true;
     }
     return false;
 }
 
-int MovingSprite::get_next_direction(){
-    if(check_collision(this->next_direction)){
+int MovingSprite::get_next_direction() const{
+    if(this->check_collision(this->next_direction)){
         return -1;
     }
     else{
@@ -122,16 +141,21 @@ int MovingSprite::get_next_direction(){
 void MovingSprite::advance(int phase){
     Sprite::advance(phase);
     if(phase){
-        if(freeze || (abs((grid_pos.x()+0.5)*grid_size - center_pos.x()) >= grid_size || abs((grid_pos.y()+0.5)*grid_size - center_pos.y()) >= grid_size)){
-            grid_pos.setX((x()-offset)/grid_size);
-            grid_pos.setY((y()-offset)/grid_size);
-            snap_to_grid();
 
-            int next_direction = this->get_next_direction();
+        QPoint grid_center = grid_pos*grid_size + QPoint(grid_size/2, grid_size/2);
+        if(freeze || abs(center_pos.x() - grid_center.x()) >= grid_size || abs(center_pos.y() - grid_center.y()) >= grid_size){
+            if(!freeze){
+                grid_pos += Sprite::directionToVec(direction);
+                snap_to_grid();
+            }
 
+            int next_direction = -1;;
+            if(map->is_in_bound(grid_pos)){
+                next_direction = this->get_next_direction();
+            }
             if(next_direction == -1){
-                this->next_direction = direction;
-                 if(check_collision(direction)){
+                //this->next_direction = direction;
+                 if(this->check_collision(direction)){
                      freeze = true;
                  }
             }
@@ -140,6 +164,6 @@ void MovingSprite::advance(int phase){
                 freeze = false;
             }
         }
-        move(Sprite::directionToVec(direction)*this->speed);
+        move(Sprite::directionToVecF(direction)*this->speed);
     }
 }

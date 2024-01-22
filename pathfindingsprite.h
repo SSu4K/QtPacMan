@@ -3,37 +3,21 @@
 
 #include "sprite.h"
 
-class PathfindingSprite;
-
-class PathfindingStrategy{
-  protected:
-    PathfindingSprite *sprite;
-    int evaluate_next_pos(QPoint pos, QPoint target);
-  public:
-    PathfindingStrategy() = default;
-    ~PathfindingStrategy() = default;
-    void init(PathfindingSprite *sprite);
-    int get_next_direction(QPoint target);
-};
-
-class AStarStrategy: public PathfindingStrategy{
-  public:
-    using PathfindingStrategy::PathfindingStrategy;
-    int evaluate_next_pos(QPoint pos, QPoint target);
-};
-
 class PathfindingSprite : public MovingSprite
 {
 protected:
-    PathfindingStrategy *strategy;
-    QPoint target;
-    int get_next_direction();
+    virtual double evaluate_next_pos(const QPoint &pos) const;
+    int get_next_direction() const;
 public:
-    PathfindingSprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y, PathfindingStrategy *strategy);
-    ~PathfindingSprite();
+    QPoint target;
+    QPoint home_grid_pos;
+    std::vector<QPoint> pos_memory;
+    size_t pos_memory_size;
+    PathfindingSprite(SpriteSheetReader &reader ,enum Sprites type, Map *map, int x, int y);
+    PathfindingSprite(const PathfindingSprite&);
+    PathfindingSprite& operator=(const PathfindingSprite &);
     void update_target(QPoint target);
-
-    friend class PathfindingStrategy;
+    void set_grid_pos(int x, int y);
 };
 
 #endif // PATHFINDINGSPRITE_H

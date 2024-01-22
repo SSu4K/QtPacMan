@@ -2,7 +2,7 @@
 
 PacMan::PacMan(SpriteSheetReader &reader, Map *map) : MovingSprite(reader, Sprites::PacMan, map, 0, 0)
 {
-    speed = 2;
+    speed = 1.5;
     set_grid_pos(1, 1);
 }
 
