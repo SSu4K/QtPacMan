@@ -15,7 +15,7 @@ Game::Game(int x, int y, int map_w, int map_h, int grid_size): QGraphicsScene(x,
     setBackgroundBrush(Qt::black);
     map.setPos(0, 1);
     addItem(&map);
-    draw_map_debug();
+    //draw_map_debug();
 
     for(int py=0;py<map.height;py++){
         for(int px=0;px<map.width;px++){
